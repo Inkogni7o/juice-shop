@@ -20,19 +20,43 @@ pipeline {
       // SEMGREP_PR_ID = "${env.CHANGE_ID}"
     }
     stages {
-      stage('Semgrep-Scan') {
-        steps {
-            sh '''docker pull semgrep/semgrep && \
-            docker run \
-            -e SEMGREP_APP_TOKEN=$SEMGREP_APP_TOKEN \
-            -e SEMGREP_REPO_URL=$SEMGREP_REPO_URL \
-            -e SEMGREP_REPO_NAME=$SEMGREP_REPO_NAME \
-            -e SEMGREP_BRANCH=$SEMGREP_BRANCH \
-            -e SEMGREP_COMMIT=$SEMGREP_COMMIT \
-            -e SEMGREP_PR_ID=$SEMGREP_PR_ID \
-            -v "$(pwd):$(pwd)" --workdir $(pwd) \
-            semgrep/semgrep semgrep ci --json --json-output=semgrep.json'''
-      }
-    }
+    //   stage('Semgrep-Scan') {
+    //     steps {
+    //         sh '''docker pull semgrep/semgrep && \
+    //         docker run \
+    //         -e SEMGREP_APP_TOKEN=$SEMGREP_APP_TOKEN \
+    //         -e SEMGREP_REPO_URL=$SEMGREP_REPO_URL \
+    //         -e SEMGREP_REPO_NAME=$SEMGREP_REPO_NAME \
+    //         -e SEMGREP_BRANCH=$SEMGREP_BRANCH \
+    //         -e SEMGREP_COMMIT=$SEMGREP_COMMIT \
+    //         -e SEMGREP_PR_ID=$SEMGREP_PR_ID \
+    //         -v "$(pwd):$(pwd)" --workdir $(pwd) \
+    //         semgrep/semgrep semgrep ci --json --json-output=semgrep.json'''
+    //   }
+    // }
+
+    stage('Trivy-Scan') {
+            steps {
+                // Install trivy
+                sh 'curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.18.3'
+                sh 'curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl > html.tpl'
+
+                // Scan all vuln levels
+                sh 'mkdir -p reports'
+                sh 'trivy filesystem --ignore-unfixed --vuln-type os,library --format template --template "@html.tpl" -o reports/nodjs-scan.html ./nodejs'
+                publishHTML target : [
+                    allowMissing: true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
+                    reportDir: 'reports',
+                    reportFiles: 'nodjs-scan.html',
+                    reportName: 'Trivy Scan',
+                    reportTitles: 'Trivy Scan'
+                ]
+
+                // Scan again and fail on CRITICAL vulns
+                sh 'trivy filesystem --ignore-unfixed --vuln-type os,library --exit-code 1 --severity CRITICAL ./nodejs'
+
+            }
   }
 }
