@@ -31,7 +31,7 @@ pipeline {
             -e SEMGREP_COMMIT=$SEMGREP_COMMIT \
             -e SEMGREP_PR_ID=$SEMGREP_PR_ID \
             -v "$(pwd):$(pwd)" --workdir $(pwd) \
-            semgrep/semgrep semgrep ci '''
+            semgrep/semgrep semgrep ci --json --json-output=semgrep.json'''
       }
     }
   }
